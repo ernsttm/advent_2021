@@ -10,7 +10,7 @@ fn parse(contents: &str) -> Vec<usize> {
 }
 
 /// Calculate the number of times the depth increases. I.E. The number of times value n in the slice
-/// is less then n - 1.
+/// is greater than n - 1.
 ///
 /// * `depths` The slice of depths to determine the number of increases in.
 fn increases_in_depth(depths: &[usize]) -> usize {
