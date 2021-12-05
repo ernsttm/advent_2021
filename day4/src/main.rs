@@ -18,7 +18,7 @@ const _TEST_CONTENT: &str = "7,4,9,5,11,17,23,2,0,14,21,24,10,16,13,6,15,25,12,2
 22 11 13  6  5
  2  0 12  3  7";
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct BingoBoard {
     grid: [[(usize, bool); 5]; 5],
 }
@@ -27,16 +27,90 @@ impl BingoBoard {
     fn new(lines: &[&str]) -> BingoBoard {
         let mut grid = [[(0, false); 5]; 5];
         for (i, &line) in lines.iter().enumerate() {
-            let numbers = line.split(' ').filter(|&l| !l.is_empty()
-            )
-            println!("Line {}", line);
-            for (j, number) in line.split(' ').enumerate() {
-                grid[i][j] = (number.parse::<usize>().unwrap(), false)
+            let numbers = line
+                .split(' ')
+                .filter(|&l| !l.is_empty())
+                .map(|s| s.parse::<usize>().unwrap())
+                .collect::<Vec<usize>>();
+            for (j, number) in numbers.iter().enumerate() {
+                grid[i][j] = (*number, false);
             }
         }
 
         BingoBoard { grid }
     }
+
+    fn check_win(&self, (i, j): (usize, usize)) -> bool {
+        let horizontal_win = self.grid[i].iter().all(|(_, visited)| *visited);
+        let vertical_win = self.grid.iter().all(|row| row[j].1);
+
+        horizontal_win || vertical_win
+    }
+
+    fn is_won(&self) -> bool {
+        (0..5).any(|i| self.check_win((i, i)))
+    }
+
+    fn mark_called_number(&mut self, called: usize) -> bool {
+        for i in 0..5 {
+            for j in 0..5 {
+                if self.grid[i][j].0 == called {
+                    self.grid[i][j].1 = true;
+                    return self.check_win((i, j));
+                }
+            }
+        }
+
+        false
+    }
+
+    fn final_score(&self, last_called: usize) -> usize {
+        let unmarked_numbers: usize = self
+            .grid
+            .iter()
+            .map(|row| {
+                row.iter().fold(
+                    0,
+                    |acc, (value, visited)| {
+                        if !visited {
+                            acc + *value
+                        } else {
+                            acc
+                        }
+                    },
+                )
+            })
+            .sum();
+
+        unmarked_numbers * last_called
+    }
+}
+
+fn find_first_winner(numbers: &[usize], mut boards: Vec<BingoBoard>) -> usize {
+    for &number in numbers {
+        for board in boards.iter_mut() {
+            if board.mark_called_number(number) {
+                return board.final_score(number);
+            }
+        }
+    }
+
+    0
+}
+
+fn find_last_winner(numbers: &[usize], mut boards: Vec<BingoBoard>) -> usize {
+    for &number in numbers {
+        let count = boards.len();
+        for board in boards.iter_mut() {
+            if board.mark_called_number(number) && count == 1 {
+                return board.final_score(number);
+            }
+        }
+
+        boards.retain(|board| !board.is_won());
+    }
+
+    0
 }
 
 fn parse(contents: &str) -> (Vec<usize>, Vec<BingoBoard>) {
@@ -64,7 +138,11 @@ fn parse(contents: &str) -> (Vec<usize>, Vec<BingoBoard>) {
 }
 
 fn main() {
-    let (numbers, boards) = parse(_TEST_CONTENT);
-    println!("Numbers: {:?}", numbers);
-    println!("Boards: {:?}", boards);
+    let contents = std::fs::read_to_string("day4/input.txt").unwrap();
+    let (numbers, boards) = parse(&contents);
+    println!(
+        "First Winner: {}",
+        find_first_winner(&numbers, boards.clone())
+    );
+    println!("Last Winner: {}", find_last_winner(&numbers, boards));
 }
